@@ -3,46 +3,157 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">Analytics Dashboard</h2>
+
+    <!-- Time Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form class="row g-3" method="GET">
+                <div class="col-md-4">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" name="range" onchange="this.form.submit()">
+                        <option value="today" {% if request.args.get('range') == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if request.args.get('range') == 'week' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="month" {% if request.args.get('range') == 'month' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="all" {% if request.args.get('range') == 'all' %}selected{% endif %}>All Time</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
     
+    <!-- Summary Stats -->
     <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Accounts</h6>
+                    <h2 class="card-title mb-0">{{ analytics.accounts|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Active Users</h6>
+                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='active_users') }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Users</h6>
+                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='total_users') }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Active Sessions</h6>
+                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='active_sessions') }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Active Sessions by Account -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
-                    Active Sessions by Account
+                    <h5 class="mb-0">Active Sessions by Account</h5>
                 </div>
                 <div class="card-body">
                     <canvas id="sessionsChart"></canvas>
                 </div>
             </div>
         </div>
-        
+
+        <!-- User Distribution -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
-                    User Activity
+                    <h5 class="mb-0">User Distribution</h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Account</th>
-                                    <th>Last Activity</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for activity in analytics.recent_activity %}
-                                <tr>
-                                    <td>{{ activity.user_id }}</td>
-                                    <td>{{ activity.account_id }}</td>
-                                    <td>{{ activity.timestamp }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    <canvas id="userDistributionChart"></canvas>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Activity Timeline -->
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="activityTimelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Activity</h5>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary active" onclick="filterActivity('all')">All</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterActivity('login')">Logins</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterActivity('access')">Access</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Account</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in analytics.recent_activity %}
+                        <tr class="activity-row" data-type="{{ activity.action }}">
+                            <td>{{ activity.timestamp[:19].replace('T', ' ') }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-person-circle me-2"></i>
+                                    {{ activity.user_id }}
+                                </div>
+                            </td>
+                            <td>
+                                {% set account = analytics.accounts|selectattr("id", "equalto", activity.account_id)|first %}
+                                {{ account.name if account else activity.account_id }}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if activity.action == 'login' else 'info' }}">
+                                    {{ activity.action }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if activity.domain %}
+                                <small class="text-muted">
+                                    <i class="bi bi-globe"></i> {{ activity.domain }}
+                                </small>
+                                {% endif %}
+                                {% if activity.ip_address %}
+                                <small class="text-muted ms-2">
+                                    <i class="bi bi-geo-alt"></i> {{ activity.ip_address }}
+                                </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -53,27 +164,127 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('sessionsChart').getContext('2d');
-    new Chart(ctx, {
+    // Sessions Chart
+    const sessionsCtx = document.getElementById('sessionsChart').getContext('2d');
+    new Chart(sessionsCtx, {
         type: 'bar',
         data: {
             labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
             datasets: [{
                 label: 'Active Sessions',
                 data: {{ analytics.accounts|map(attribute='active_sessions')|list|tojson }},
-                backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                backgroundColor: 'rgba(75, 145, 241, 0.5)',
+                borderColor: 'rgb(75, 145, 241)',
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
-                    stepSize: 1
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    // User Distribution Chart
+    const userCtx = document.getElementById('userDistributionChart').getContext('2d');
+    new Chart(userCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
+            datasets: [{
+                data: {{ analytics.accounts|map(attribute='total_users')|list|tojson }},
+                backgroundColor: [
+                    '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
+                    '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Activity Timeline
+    const timelineCtx = document.getElementById('activityTimelineChart').getContext('2d');
+    const timeLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
+    
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Logins',
+                data: generateHourlyData({{ analytics.recent_activity|tojson }}, 'login'),
+                borderColor: '#4B91F1',
+                tension: 0.4
+            }, {
+                label: 'Access',
+                data: generateHourlyData({{ analytics.recent_activity|tojson }}, 'access'),
+                borderColor: '#4BC0C0',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
                 }
             }
         }
     });
 });
+
+function generateHourlyData(activities, type) {
+    const hourCounts = new Array(24).fill(0);
+    
+    activities.forEach(activity => {
+        if (activity.action === type) {
+            const hour = new Date(activity.timestamp).getHours();
+            hourCounts[hour]++;
+        }
+    });
+    
+    return hourCounts;
+}
+
+function filterActivity(type) {
+    const rows = document.querySelectorAll('.activity-row');
+    rows.forEach(row => {
+        if (type === 'all' || row.dataset.type === type) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+}
 </script>
 {% endblock %}

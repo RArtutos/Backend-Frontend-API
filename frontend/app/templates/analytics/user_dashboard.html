@@ -3,89 +3,131 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">User Analytics</h2>
+
+    <!-- Time Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form class="row g-3" method="GET">
+                <div class="col-md-4">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" name="range" onchange="this.form.submit()">
+                        <option value="today" {% if request.args.get('range') == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if request.args.get('range') == 'week' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="month" {% if request.args.get('range') == 'month' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="all" {% if request.args.get('range') == 'all' %}selected{% endif %}>All Time</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <div class="row">
         <!-- Summary Cards -->
         <div class="col-md-4">
             <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Active Sessions</h5>
-                    <h2 class="card-text">{{ analytics.current_sessions }}/{{ user.max_devices if user else 1 }}</h2>
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Active Sessions</h6>
+                    <h2 class="card-title mb-0">{{ analytics.current_sessions }}/{{ user.max_devices if user else 1 }}</h2>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {{ (analytics.current_sessions / user.max_devices * 100) if user else 0 }}%"></div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Total Time</h5>
-                    <h2 class="card-text">{{ (analytics.total_time / 3600)|round(1) }} hours</h2>
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Time</h6>
+                    <h2 class="card-title mb-0">{{ (analytics.total_time / 3600)|round(1) }}</h2>
+                    <small class="text-muted">hours</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Total Sessions</h5>
-                    <h2 class="card-text">{{ analytics.total_sessions }}</h2>
+                <div class="card-body text-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Sessions</h6>
+                    <h2 class="card-title mb-0">{{ analytics.total_sessions }}</h2>
+                    <small class="text-muted">sessions completed</small>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Account Usage -->
+        <!-- Account Usage Chart -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Account Usage</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary active" onclick="toggleChart('pie')">Pie</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="toggleChart('bar')">Bar</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="accountUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Over Time -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Account Usage</h5>
+                    <h5 class="mb-0">Daily Usage</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Account Details -->
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Account Details</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Account</th>
                                     <th>Time Used</th>
                                     <th>Last Access</th>
+                                    <th>Usage</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for account in analytics.account_usage %}
                                 <tr>
-                                    <td>{{ account.name }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-badge me-2"></i>
+                                            {{ account.name }}
+                                        </div>
+                                    </td>
                                     <td>{{ (account.total_time / 3600)|round(1) }} hours</td>
-                                    <td>{% if account.last_access %}{{ account.last_access[:19].replace('T', ' ') }}{% else %}Never{% endif %}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Recent Activity</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Account</th>
-                                    <th>Action</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for activity in analytics.last_activities %}
-                                <tr>
-                                    <td>{{ activity.account_name }}</td>
-                                    <td>{{ activity.action }}</td>
-                                    <td>{% if activity.timestamp %}{{ activity.timestamp[:19].replace('T', ' ') }}{% else %}Never{% endif %}</td>
+                                    <td>
+                                        {% if account.last_access %}
+                                            {{ account.last_access[:19].replace('T', ' ') }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 30%;">
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ (account.total_time / analytics.total_time * 100)|round(1) }}%">
+                                                {{ (account.total_time / analytics.total_time * 100)|round(1) }}%
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -96,4 +138,148 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let accountChart;
+let dailyChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Account Usage Chart
+    const accountCtx = document.getElementById('accountUsageChart').getContext('2d');
+    const accountData = {
+        labels: {{ analytics.account_usage|map(attribute='name')|list|tojson }},
+        datasets: [{
+            data: {{ analytics.account_usage|map(attribute='total_time')|list|tojson }},
+            backgroundColor: [
+                '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
+                '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
+            ]
+        }]
+    };
+
+    accountChart = new Chart(accountCtx, {
+        type: 'pie',
+        data: accountData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const hours = (context.raw / 3600).toFixed(1);
+                            return `${context.label}: ${hours} hours`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Daily Usage Chart
+    const dailyCtx = document.getElementById('dailyUsageChart').getContext('2d');
+    const timeLabels = Array.from({length: 7}, (_, i) => {
+        const d = new Date Continuing with the Daily Usage Chart code in the user_dashboard.html template:
+
+```javascript
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d.toLocaleDateString();
+    }).reverse();
+
+    dailyChart = new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: timeLabels,
+            datasets: [{
+                label: 'Hours Used',
+                data: [5.2, 4.8, 6.1, 3.9, 7.2, 5.5, 4.9], // Example data
+                borderColor: '#4B91F1',
+                tension: 0.4,
+                fill: true,
+                backgroundColor: 'rgba(75, 145, 241, 0.1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + 'h';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+function toggleChart(type) {
+    if (!accountChart) return;
+
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    accountChart.destroy();
+    const ctx = document.getElementById('accountUsageChart').getContext('2d');
+    
+    const config = {
+        type: type,
+        data: {
+            labels: {{ analytics.account_usage|map(attribute='name')|list|tojson }},
+            datasets: [{
+                data: {{ analytics.account_usage|map(attribute='total_time')|list|tojson }},
+                backgroundColor: [
+                    '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
+                    '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const hours = (context.raw / 3600).toFixed(1);
+                            return `${context.label}: ${hours} hours`;
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    if (type === 'bar') {
+        config.options.scales = {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return (value / 3600).toFixed(1) + 'h';
+                    }
+                }
+            }
+        };
+    }
+
+    accountChart = new Chart(ctx, config);
+}
+</script>
 {% endblock %}
