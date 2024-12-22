@@ -18,7 +18,7 @@ class AdminService(BaseService):
 
     def create_user(self, user_data: Dict) -> Optional[Dict]:
         """Create a new user and assign preset accounts if specified"""
-        # Asegurarse de que preset_id sea un entero si existe
+        # Handle preset_id conversion
         if 'preset_id' in user_data:
             try:
                 user_data['preset_id'] = int(user_data['preset_id'])
@@ -27,10 +27,10 @@ class AdminService(BaseService):
             except (ValueError, TypeError):
                 del user_data['preset_id']
 
-        # Crear el usuario
+        # Create the user
         created_user = self._handle_request('post', f"{self.endpoint}/users", user_data)
         
-        # Si se creó el usuario y hay un preset_id válido, asignar las cuentas
+        # If user was created and has a preset_id, assign preset accounts
         if created_user and 'preset_id' in user_data and user_data['preset_id']:
             try:
                 preset = self.get_preset(user_data['preset_id'])
@@ -41,6 +41,38 @@ class AdminService(BaseService):
                 print(f"Error assigning preset accounts: {str(e)}")
                 
         return created_user
+
+    def update_user(self, user_id: str, user_data: Dict) -> Optional[Dict]:
+        """Update an existing user"""
+        # Handle preset_id conversion
+        if 'preset_id' in user_data:
+            try:
+                user_data['preset_id'] = int(user_data['preset_id'])
+                if user_data['preset_id'] == 0:
+                    del user_data['preset_id']
+            except (ValueError, TypeError):
+                del user_data['preset_id']
+
+        # Update the user
+        updated_user = self._handle_request('put', f"{self.endpoint}/users/{user_id}", user_data)
+        
+        # If user was updated and has a preset_id, reassign preset accounts
+        if updated_user and 'preset_id' in user_data and user_data['preset_id']:
+            try:
+                # First remove all existing account assignments
+                current_accounts = self.get_user_accounts(user_id)
+                for account in current_accounts:
+                    self.remove_account_from_user(user_id, account['id'])
+                
+                # Then assign new preset accounts
+                preset = self.get_preset(user_data['preset_id'])
+                if preset and preset.get('account_ids'):
+                    for account_id in preset['account_ids']:
+                        self.assign_account_to_user(user_id, account_id)
+            except Exception as e:
+                print(f"Error reassigning preset accounts: {str(e)}")
+                
+        return updated_user
 
     def delete_user(self, user_id: str) -> bool:
         """Delete a user"""
