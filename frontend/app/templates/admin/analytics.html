@@ -42,8 +42,8 @@
         <div class="col-md-3">
             <div class="card mb-4">
                 <div class="card-body text-center">
-                    <h6 class="card-subtitle mb-2 text-muted">Total Users</h6>
-                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='total_users') }}</h2>
+                    <h6 class="card-subtitle mb-2 text-muted">Unique Users</h6>
+                    <h2 class="card-title mb-0">{{ analytics.total_unique_users }}</h2>
                 </div>
             </div>
         </div>
@@ -58,40 +58,77 @@
     </div>
 
     <div class="row">
-        <!-- Active Sessions by Account -->
+        <!-- Historical Usage -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Active Sessions by Account</h5>
+                    <h5 class="mb-0">Historical Usage</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="sessionsChart"></canvas>
+                    <canvas id="historicalUsageChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- User Distribution -->
+        <!-- Most Used Accounts -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">User Distribution</h5>
+                    <h5 class="mb-0">Most Used Accounts</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="userDistributionChart"></canvas>
+                    <canvas id="accountUsageChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Activity Timeline -->
+        <!-- Accounts Near Limit -->
         <div class="col-md-12">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Activity Timeline</h5>
+                    <h5 class="mb-0">Accounts Near User Limit</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="activityTimelineChart"></canvas>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Active Users</th>
+                                    <th>Limit</th>
+                                    <th>Usage</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for account in analytics.accounts|sort(attribute='usage_percentage', reverse=True) %}
+                                {% if account.usage_percentage >= 70 %}
+                                <tr>
+                                    <td>{{ account.name }}</td>
+                                    <td>{{ account.active_users }}</td>
+                                    <td>{{ account.max_concurrent_users }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-{{ 'danger' if account.usage_percentage >= 90 else 'warning' }}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ account.usage_percentage }}%">
+                                                {{ account.usage_percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if account.usage_percentage >= 90 else 'warning' }}">
+                                            {{ 'Critical' if account.usage_percentage >= 90 else 'Warning' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,18 +201,21 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Sessions Chart
-    const sessionsCtx = document.getElementById('sessionsChart').getContext('2d');
-    new Chart(sessionsCtx, {
-        type: 'bar',
+    // Historical Usage Chart
+    const historicalCtx = document.getElementById('historicalUsageChart').getContext('2d');
+    const historicalData = {{ analytics.historical_data|tojson }};
+    
+    new Chart(historicalCtx, {
+        type: 'line',
         data: {
-            labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
+            labels: historicalData.map(d => new Date(d.timestamp).toLocaleDateString()),
             datasets: [{
                 label: 'Active Sessions',
-                data: {{ analytics.accounts|map(attribute='active_sessions')|list|tojson }},
-                backgroundColor: 'rgba(75, 145, 241, 0.5)',
-                borderColor: 'rgb(75, 145, 241)',
-                borderWidth: 1
+                data: historicalData.map(d => d.active_sessions),
+                borderColor: '#4B91F1',
+                tension: 0.4,
+                fill: true,
+                backgroundColor: 'rgba(75, 145, 241, 0.1)'
             }]
         },
         options: {
@@ -196,55 +236,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // User Distribution Chart
-    const userCtx = document.getElementById('userDistributionChart').getContext('2d');
-    new Chart(userCtx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
-            datasets: [{
-                data: {{ analytics.accounts|map(attribute='total_users')|list|tojson }},
-                backgroundColor: [
-                    '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
-                    '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
+    // Account Usage Chart
+    const accountCtx = document.getElementById('accountUsageChart').getContext('2d');
+    const accountData = {
+        labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
+        datasets: [{
+            label: 'Active Sessions',
+            data: {{ analytics.accounts|map(attribute='active_sessions')|list|tojson }},
+            backgroundColor: [
+                '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
+                '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
+            ]
+        }]
+    };
 
-    // Activity Timeline
-    const timelineCtx = document.getElementById('activityTimelineChart').getContext('2d');
-    const timeLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
-    
-    new Chart(timelineCtx, {
-        type: 'line',
-        data: {
-            labels: timeLabels,
-            datasets: [{
-                label: 'Logins',
-                data: generateHourlyData({{ analytics.recent_activity|tojson }}, 'login'),
-                borderColor: '#4B91F1',
-                tension: 0.4
-            }, {
-                label: 'Access',
-                data: generateHourlyData({{ analytics.recent_activity|tojson }}, 'access'),
-                borderColor: '#4BC0C0',
-                tension: 0.4
-            }]
-        },
+    new Chart(accountCtx, {
+        type: 'bar',
+        data: accountData,
         options: {
             responsive: true,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    display: false
                 }
             },
             scales: {
@@ -258,19 +271,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-
-function generateHourlyData(activities, type) {
-    const hourCounts = new Array(24).fill(0);
-    
-    activities.forEach(activity => {
-        if (activity.action === type) {
-            const hour = new Date(activity.timestamp).getHours();
-            hourCounts[hour]++;
-        }
-    });
-    
-    return hourCounts;
-}
 
 function filterActivity(type) {
     const rows = document.querySelectorAll('.activity-row');
