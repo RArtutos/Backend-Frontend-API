@@ -32,6 +32,52 @@ async def create_user(user: UserCreate, current_user: dict = Depends(get_current
 
     return created_user
 
+@router.get("/{user_id}/accounts")
+async def get_user_accounts(user_id: str, current_user: dict = Depends(get_current_admin_user)):
+    """Get accounts assigned to a user"""
+    user = db.get_user_by_email(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return db.get_accounts(user_id)
+
+@router.post("/{user_id}/accounts/{account_id}")
+async def assign_account(
+    user_id: str,
+    account_id: int,
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Assign an account to a user"""
+    user = db.get_user_by_email(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    account = db.get_account(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if db.assign_account_to_user(user_id, account_id):
+        return {"success": True, "message": "Account assigned successfully"}
+    raise HTTPException(status_code=400, detail="Failed to assign account")
+
+@router.delete("/{user_id}/accounts/{account_id}")
+async def remove_account(
+    user_id: str,
+    account_id: int,
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Remove an account from a user"""
+    user = db.get_user_by_email(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    account = db.get_account(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if db.remove_account_from_user(user_id, account_id):
+        return {"success": True, "message": "Account removed successfully"}
+    raise HTTPException(status_code=400, detail="Failed to remove account")
+
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: str,
