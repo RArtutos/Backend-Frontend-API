@@ -68,6 +68,18 @@
                         {% endif %}
                         <small class="text-muted">Maximum number of concurrent users allowed for this account</small>
                     </div>
+                    <div class="mb-3">
+                        {{ form.image_url.label(class="form-label") }}
+                        {{ form.image_url(class="form-control", placeholder="https://example.com/image.png") }}
+                        {% if form.image_url.errors %}
+                            <div class="text-danger">
+                                {% for error in form.image_url.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">{{ form.image_url.description }}</small>
+                    </div>
                     <button type="submit" class="btn btn-primary">{{ 'Update' if is_edit else 'Save' }}</button>
                     <a href="{{ url_for('accounts.list') }}" class="btn btn-secondary">Cancel</a>
                 </form>

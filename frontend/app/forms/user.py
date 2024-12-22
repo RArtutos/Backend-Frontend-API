@@ -4,7 +4,8 @@ from wtforms.validators import DataRequired, Email, Length, Optional, NumberRang
 
 class UserForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    password = PasswordField('Password', validators=[Optional(), Length(min=6)],
+                           description="Leave empty to keep current password")
     is_admin = BooleanField('Is Admin')
     max_devices = IntegerField('Max Devices', 
                              validators=[DataRequired(), NumberRange(min=1)],
@@ -31,12 +32,14 @@ class UserForm(FlaskForm):
         """Get form data in the format expected by the API"""
         data = {
             'email': self.email.data,
-            'password': self.password.data,
             'is_admin': self.is_admin.data,
             'max_devices': self.max_devices.data,
             'expires_in_days': self.expires_in_days.data
         }
         
+        if self.password.data:
+            data['password'] = self.password.data
+            
         if self.preset_id.data and self.preset_id.data != 0:
             data['preset_id'] = self.preset_id.data
             

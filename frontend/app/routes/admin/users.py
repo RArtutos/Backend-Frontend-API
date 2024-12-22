@@ -22,6 +22,30 @@ class UserViews:
                 flash(str(e), 'error')
         return render_template('admin/users/form.html', form=form)
 
+    def edit_user(self, user_id):
+        """Edit existing user"""
+        user = admin_service.get_user(user_id)
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('admin.admin_list_users'))
+
+        form = UserForm()
+        if request.method == 'GET':
+            form.email.data = user['email']
+            form.is_admin.data = user.get('is_admin', False)
+            form.max_devices.data = user.get('max_devices', 1)
+            form.preset_id.data = user.get('preset_id', 0)
+
+        if form.validate_on_submit():
+            try:
+                if admin_service.update_user(user_id, form.get_data()):
+                    flash('User updated successfully', 'success')
+                    return redirect(url_for('admin.admin_list_users'))
+                flash('Failed to update user', 'error')
+            except Exception as e:
+                flash(str(e), 'error')
+        return render_template('admin/users/form.html', form=form, is_edit=True)
+
     def user_accounts(self, user_id):
         """Manage user accounts"""
         user = admin_service.get_user(user_id)

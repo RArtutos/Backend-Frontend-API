@@ -24,6 +24,9 @@ bp.add_url_rule('/users', 'admin_list_users',
 bp.add_url_rule('/users/create', 'admin_create_user',
                 view_func=login_required(admin_required(user_views.create_user)),
                 methods=['GET', 'POST'])
+bp.add_url_rule('/users/<user_id>/edit', 'admin_edit_user',  # Added this line
+                view_func=login_required(admin_required(user_views.edit_user)),
+                methods=['GET', 'POST'])
 bp.add_url_rule('/users/<user_id>/accounts', 'admin_user_accounts',
                 view_func=login_required(admin_required(user_views.user_accounts)))
 bp.add_url_rule('/users/<user_id>/accounts/<int:account_id>', 'admin_assign_account',

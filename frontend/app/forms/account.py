@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, IntegerField
-from wtforms.validators import DataRequired, NumberRange, ValidationError
+from wtforms import StringField, TextAreaField, IntegerField, URLField
+from wtforms.validators import DataRequired, NumberRange, ValidationError, Optional, URL
 from datetime import datetime
 
 class AccountForm(FlaskForm):
@@ -11,6 +11,8 @@ class AccountForm(FlaskForm):
     max_concurrent_users = IntegerField('Maximum Concurrent Users', 
                                       validators=[DataRequired(), NumberRange(min=1)],
                                       default=1)
+    image_url = URLField('Image URL', validators=[Optional(), URL()],
+                        description="URL to an image representing this account (PNG format recommended)")
 
     def validate_domain(self, field):
         if not field.data:
@@ -48,5 +50,6 @@ class AccountForm(FlaskForm):
             'name': self.name.data,
             'group': self.group.data or None,
             'cookies': cookies,
-            'max_concurrent_users': self.max_concurrent_users.data
+            'max_concurrent_users': self.max_concurrent_users.data,
+            'image_url': self.image_url.data or None
         }

@@ -5,7 +5,7 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">Create User</h4>
+                <h4 class="mb-0">{{ 'Edit' if is_edit else 'Create' }} User</h4>
             </div>
             <div class="card-body">
                 <form method="POST">
@@ -30,6 +30,9 @@
                                     <small>{{ error }}</small>
                                 {% endfor %}
                             </div>
+                        {% endif %}
+                        {% if is_edit %}
+                        <small class="text-muted">{{ form.password.description }}</small>
                         {% endif %}
                     </div>
                     <div class="mb-3">
@@ -75,7 +78,7 @@
                         {% endif %}
                     </div>
                     {% endif %}
-                    <button type="submit" class="btn btn-primary">Create User</button>
+                    <button type="submit" class="btn btn-primary">{{ 'Update' if is_edit else 'Create' }} User</button>
                     <a href="{{ url_for('admin.admin_list_users') }}" class="btn btn-secondary">Cancel</a>
                 </form>
             </div>

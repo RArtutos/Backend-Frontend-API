@@ -13,6 +13,7 @@
             <table class="table">
                 <thead>
                     <tr>
+                        <th>Image</th>
                         <th>Name</th>
                         <th>Group</th>
                         <th>Cookies</th>
@@ -23,6 +24,13 @@
                 <tbody>
                     {% for account in accounts %}
                     <tr data-account-id="{{ account.id }}">
+                        <td>
+                            {% if account.image_url %}
+                            <img src="{{ account.image_url }}" alt="{{ account.name }}" style="height: 30px; width: 30px; object-fit: contain;">
+                            {% else %}
+                            <div class="bg-secondary rounded" style="height: 30px; width: 30px;"></div>
+                            {% endif %}
+                        </td>
                         <td>{{ account.name }}</td>
                         <td>{{ account.group or '-' }}</td>
                         <td>{{ account.cookies|length }}</td>

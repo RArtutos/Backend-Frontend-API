@@ -58,6 +58,10 @@
                                        class="btn btn-sm btn-info">
                                         <i class="bi bi-gear"></i> Manage
                                     </a>
+                                    <a href="{{ url_for('admin.admin_edit_user', user_id=user.email) }}"
+                                       class="btn btn-sm btn-warning">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
                                     <button class="btn btn-sm btn-danger" 
                                             onclick="deleteUser('{{ user.email }}')"
                                             {% if user.is_admin %}disabled{% endif %}>
