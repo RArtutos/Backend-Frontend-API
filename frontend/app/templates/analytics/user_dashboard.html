@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">User Analytics</h2>
+    
+    <div class="row">
+        <!-- Summary Cards -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Active Sessions</h5>
+                    <h2 class="card-text">{{ analytics.current_sessions }}/{{ user.max_devices if user else 1 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total Time</h5>
+                    <h2 class="card-text">{{ (analytics.total_time / 3600)|round(1) }} hours</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total Sessions</h5>
+                    <h2 class="card-text">{{ analytics.total_sessions }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Account Usage -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Account Usage</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Time Used</th>
+                                    <th>Last Access</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for account in analytics.account_usage %}
+                                <tr>
+                                    <td>{{ account.name }}</td>
+                                    <td>{{ (account.total_time / 3600)|round(1) }} hours</td>
+                                    <td>{% if account.last_access %}{{ account.last_access[:19].replace('T', ' ') }}{% else %}Never{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Action</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in analytics.last_activities %}
+                                <tr>
+                                    <td>{{ activity.account_name }}</td>
+                                    <td>{{ activity.action }}</td>
+                                    <td>{% if activity.timestamp %}{{ activity.timestamp[:19].replace('T', ' ') }}{% else %}Never{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ 'Edit' if is_edit else 'Add' }} Account</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.csrf_token }}
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.group.label(class="form-label") }}
+                        {{ form.group(class="form-control") }}
+                        {% if form.group.errors %}
+                            <div class="text-danger">
+                                {% for error in form.group.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.domain.label(class="form-label") }}
+                        {{ form.domain(class="form-control", placeholder="e.g. .example.com") }}
+                        {% if form.domain.errors %}
+                            <div class="text-danger">
+                                {% for error in form.domain.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Domain for the cookies (e.g. .example.com)</small>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.cookies.label(class="form-label") }}
+                        {{ form.cookies(class="form-control", rows=5, placeholder="name1=value1; name2=value2") }}
+                        {% if form.cookies.errors %}
+                            <div class="text-danger">
+                                {% for error in form.cookies.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Paste your cookies string here (e.g. sessionid=abc123; user=john)</small>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.max_concurrent_users.label(class="form-label") }}
+                        {{ form.max_concurrent_users(class="form-control", type="number", min="1") }}
+                        {% if form.max_concurrent_users.errors %}
+                            <div class="text-danger">
+                                {% for error in form.max_concurrent_users.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Maximum number of concurrent users allowed for this account</small>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.image_url.label(class="form-label") }}
+                        {{ form.image_url(class="form-control", placeholder="https://example.com/image.png") }}
+                        {% if form.image_url.errors %}
+                            <div class="text-danger">
+                                {% for error in form.image_url.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">{{ form.image_url.description }}</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">{{ 'Update' if is_edit else 'Save' }}</button>
+                    <a href="{{ url_for('accounts.list') }}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

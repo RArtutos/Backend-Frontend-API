@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Account Analytics</h2>
+    
+    <div class="row">
+        <!-- Summary Cards -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total Users</h5>
+                    <h2 class="card-text">{{ analytics.total_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Active Users</h5>
+                    <h2 class="card-text">{{ analytics.active_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Total Sessions</h5>
+                    <h2 class="card-text">{{ analytics.total_sessions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Current Sessions</h5>
+                    <h2 class="card-text">{{ analytics.current_sessions }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Domain Usage Chart -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Domain Usage</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="domainUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Activities -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activities</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Domain</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in analytics.user_activities %}
+                                <tr>
+                                    <td>{{ activity.user_id }}</td>
+                                    <td>{{ activity.action }}</td>
+                                    <td>{{ activity.domain }}</td>
+                                    <td>{% if activity.timestamp %}{{ activity.timestamp[:19].replace('T', ' ') }}{% else %}Never{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('domainUsageChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: {{ analytics.usage_by_domain|map(attribute='domain')|list|tojson }},
+            datasets: [{
+                data: {{ analytics.usage_by_domain|map(attribute='total_time')|list|tojson }},
+                backgroundColor: [
+                    '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}
