@@ -8,7 +8,7 @@ class AdminService(BaseService):
 
     def get_users(self) -> List[Dict]:
         """Get all users"""
-        result = self._handle_request('get', f"{self.endpoint}/users")
+        result = self._handle_request('get', f"{self.endpoint}/users/")
         return result if result else []
 
     def get_user(self, user_id: str) -> Optional[Dict]:
@@ -28,18 +28,7 @@ class AdminService(BaseService):
                 del user_data['preset_id']
 
         # Create the user
-        created_user = self._handle_request('post', f"{self.endpoint}/users", user_data)
-        
-        # If user was created and has a preset_id, assign preset accounts
-        if created_user and 'preset_id' in user_data and user_data['preset_id']:
-            try:
-                preset = self.get_preset(user_data['preset_id'])
-                if preset and preset.get('account_ids'):
-                    for account_id in preset['account_ids']:
-                        self.assign_account_to_user(created_user['email'], account_id)
-            except Exception as e:
-                print(f"Error assigning preset accounts: {str(e)}")
-                
+        created_user = self._handle_request('post', f"{self.endpoint}/users/", user_data)
         return created_user
 
     def update_user(self, user_id: str, user_data: Dict) -> Optional[Dict]:
@@ -55,23 +44,6 @@ class AdminService(BaseService):
 
         # Update the user
         updated_user = self._handle_request('put', f"{self.endpoint}/users/{user_id}", user_data)
-        
-        # If user was updated and has a preset_id, reassign preset accounts
-        if updated_user and 'preset_id' in user_data and user_data['preset_id']:
-            try:
-                # First remove all existing account assignments
-                current_accounts = self.get_user_accounts(user_id)
-                for account in current_accounts:
-                    self.remove_account_from_user(user_id, account['id'])
-                
-                # Then assign new preset accounts
-                preset = self.get_preset(user_data['preset_id'])
-                if preset and preset.get('account_ids'):
-                    for account_id in preset['account_ids']:
-                        self.assign_account_to_user(user_id, account_id)
-            except Exception as e:
-                print(f"Error reassigning preset accounts: {str(e)}")
-                
         return updated_user
 
     def delete_user(self, user_id: str) -> bool:
@@ -86,7 +58,7 @@ class AdminService(BaseService):
 
     def get_available_accounts(self) -> List[Dict]:
         """Get all available accounts"""
-        result = self._handle_request('get', f"{self.endpoint}/accounts")
+        result = self._handle_request('get', f"{self.endpoint}/accounts/")
         return result if result else []
 
     def assign_account_to_user(self, user_id: str, account_id: int) -> bool:
@@ -107,7 +79,7 @@ class AdminService(BaseService):
 
     def get_analytics(self) -> Dict:
         """Get analytics dashboard data"""
-        result = self._handle_request('get', f"{self.endpoint}/analytics")
+        result = self._handle_request('get', f"{self.endpoint}/analytics/")
         return result if result else {}
 
     def get_user_analytics(self, user_id: str) -> Dict:
@@ -122,7 +94,7 @@ class AdminService(BaseService):
 
     def get_presets(self) -> List[Dict]:
         """Get all presets"""
-        result = self._handle_request('get', f"{self.endpoint}/presets")
+        result = self._handle_request('get', f"{self.endpoint}/presets/")
         return result if result else []
 
     def get_preset(self, preset_id: int) -> Optional[Dict]:
@@ -132,7 +104,7 @@ class AdminService(BaseService):
 
     def create_preset(self, preset_data: Dict) -> Optional[Dict]:
         """Create a new preset"""
-        return self._handle_request('post', f"{self.endpoint}/presets", preset_data)
+        return self._handle_request('post', f"{self.endpoint}/presets/", preset_data)
 
     def update_preset(self, preset_id: int, preset_data: Dict) -> Optional[Dict]:
         """Update an existing preset"""
