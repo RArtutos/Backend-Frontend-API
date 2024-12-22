@@ -7,17 +7,34 @@
     <!-- Time Filter -->
     <div class="card mb-4">
         <div class="card-body">
-            <form class="row g-3" method="GET">
+            <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Time Range</label>
-                    <select class="form-select" name="range" onchange="this.form.submit()">
-                        <option value="today" {% if request.args.get('range') == 'today' %}selected{% endif %}>Today</option>
-                        <option value="week" {% if request.args.get('range') == 'week' %}selected{% endif %}>Last 7 Days</option>
-                        <option value="month" {% if request.args.get('range') == 'month' %}selected{% endif %}>Last 30 Days</option>
-                        <option value="all" {% if request.args.get('range') == 'all' %}selected{% endif %}>All Time</option>
+                    <select class="form-select" name="range" id="timeRange" onchange="updateCharts()">
+                        <option value="hour">Last Hour</option>
+                        <option value="day">Last 24 Hours</option>
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
                     </select>
                 </div>
-            </form>
+                <div class="col-md-4">
+                    <label class="form-label">Auto Refresh</label>
+                    <div class="input-group">
+                        <select class="form-select" id="refreshInterval">
+                            <option value="30">30 seconds</option>
+                            <option value="60" selected>1 minute</option>
+                            <option value="300">5 minutes</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" type="button" onclick="toggleAutoRefresh()" id="refreshToggle">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Last Update</label>
+                    <div class="form-control-plaintext" id="lastUpdate">Never</div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -26,8 +43,9 @@
         <div class="col-md-3">
             <div class="card mb-4">
                 <div class="card-body text-center">
-                    <h6 class="card-subtitle mb-2 text-muted">Total Accounts</h6>
-                    <h2 class="card-title mb-0">{{ analytics.accounts|length }}</h2>
+                    <h6 class="card-subtitle mb-2 text-muted">Current Sessions</h6>
+                    <h2 class="card-title mb-0" id="currentSessions">0</h2>
+                    <small class="text-success" id="sessionsTrend"></small>
                 </div>
             </div>
         </div>
@@ -35,98 +53,107 @@
             <div class="card mb-4">
                 <div class="card-body text-center">
                     <h6 class="card-subtitle mb-2 text-muted">Active Users</h6>
-                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='active_users') }}</h2>
+                    <h2 class="card-title mb-0" id="activeUsers">0</h2>
+                    <small class="text-success" id="usersTrend"></small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card mb-4">
                 <div class="card-body text-center">
-                    <h6 class="card-subtitle mb-2 text-muted">Unique Users</h6>
-                    <h2 class="card-title mb-0">{{ analytics.total_unique_users }}</h2>
+                    <h6 class="card-subtitle mb-2 text-muted">Peak Sessions</h6>
+                    <h2 class="card-title mb-0" id="peakSessions">0</h2>
+                    <small class="text-muted" id="peakTime"></small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card mb-4">
                 <div class="card-body text-center">
-                    <h6 class="card-subtitle mb-2 text-muted">Active Sessions</h6>
-                    <h2 class="card-title mb-0">{{ analytics.accounts|sum(attribute='active_sessions') }}</h2>
+                    <h6 class="card-subtitle mb-2 text-muted">Total Accounts</h6>
+                    <h2 class="card-title mb-0" id="totalAccounts">0</h2>
+                    <small class="text-muted" id="accountsActive"></small>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Historical Usage -->
-        <div class="col-md-6">
+        <!-- Sessions Over Time -->
+        <div class="col-md-8">
             <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Historical Usage</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sessions Over Time</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" onclick="toggleSessionsView('total')">Total</button>
+                        <button class="btn btn-outline-secondary" onclick="toggleSessionsView('byAccount')">By Account</button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <canvas id="historicalUsageChart"></canvas>
+                    <canvas id="sessionsChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Most Used Accounts -->
-        <div class="col-md-6">
+        <!-- Account Usage Distribution -->
+        <div class="col-md-4">
             <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Most Used Accounts</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Account Usage</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" onclick="toggleDistributionChart('doughnut')">Doughnut</button>
+                        <button class="btn btn-outline-secondary" onclick="toggleDistributionChart('bar')">Bar</button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <canvas id="accountUsageChart"></canvas>
+                    <canvas id="accountDistributionChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Accounts Near Limit -->
-        <div class="col-md-12">
+        <!-- Domain Activity -->
+        <div class="col-md-6">
             <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Accounts Near User Limit</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Domain Activity</h5>
+                    <select class="form-select form-select-sm w-auto" id="domainFilter" onchange="updateDomainActivity()">
+                        <option value="all">All Accounts</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <canvas id="domainActivityChart"></canvas>
+                </div>
+                <div class="card-footer">
+                    <div class="small text-muted" id="domainStats"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Performance -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Account Performance</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" onclick="sortAccountTable('usage')">By Usage</button>
+                        <button class="btn btn-outline-secondary" onclick="sortAccountTable('users')">By Users</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover" id="accountPerformanceTable">
                             <thead>
                                 <tr>
                                     <th>Account</th>
-                                    <th>Active Users</th>
-                                    <th>Limit</th>
+                                    <th>Active/Total</th>
+                                    <th>Users</th>
                                     <th>Usage</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {% for account in analytics.accounts|sort(attribute='usage_percentage', reverse=True) %}
-                                {% if account.usage_percentage >= 70 %}
-                                <tr>
-                                    <td>{{ account.name }}</td>
-                                    <td>{{ account.active_users }}</td>
-                                    <td>{{ account.max_concurrent_users }}</td>
-                                    <td>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-{{ 'danger' if account.usage_percentage >= 90 else 'warning' }}" 
-                                                 role="progressbar" 
-                                                 style="width: {{ account.usage_percentage }}%">
-                                                {{ account.usage_percentage }}%
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{{ 'danger' if account.usage_percentage >= 90 else 'warning' }}">
-                                            {{ 'Critical' if account.usage_percentage >= 90 else 'Warning' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endif %}
-                                {% endfor %}
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
@@ -134,63 +161,37 @@
         </div>
     </div>
 
-    <!-- Recent Activity -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Recent Activity</h5>
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary active" onclick="filterActivity('all')">All</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="filterActivity('login')">Logins</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="filterActivity('access')">Access</button>
-            </div>
+    <!-- Usage Patterns -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Usage Patterns</h5>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>User</th>
-                            <th>Account</th>
-                            <th>Action</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for activity in analytics.recent_activity %}
-                        <tr class="activity-row" data-type="{{ activity.action }}">
-                            <td>{{ activity.timestamp[:19].replace('T', ' ') }}</td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-person-circle me-2"></i>
-                                    {{ activity.user_id }}
-                                </div>
-                            </td>
-                            <td>
-                                {% set account = analytics.accounts|selectattr("id", "equalto", activity.account_id)|first %}
-                                {{ account.name if account else activity.account_id }}
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if activity.action == 'login' else 'info' }}">
-                                    {{ activity.action }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if activity.domain %}
-                                <small class="text-muted">
-                                    <i class="bi bi-globe"></i> {{ activity.domain }}
-                                </small>
-                                {% endif %}
-                                {% if activity.ip_address %}
-                                <small class="text-muted ms-2">
-                                    <i class="bi bi-geo-alt"></i> {{ activity.ip_address }}
-                                </small>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Peak Usage Hours</h6>
+                            <div id="peakHours"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Most Active Domains</h6>
+                            <div id="topDomains"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Account Health</h6>
+                            <div id="accountHealth"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -200,29 +201,160 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Historical Usage Chart
-    const historicalCtx = document.getElementById('historicalUsageChart').getContext('2d');
-    const historicalData = {{ analytics.historical_data|tojson }};
+let sessionsChart, accountDistributionChart, domainActivityChart;
+let historicalData = [];
+let refreshInterval;
+let isAutoRefreshEnabled = true;
+
+// Fetch historical data
+async function fetchHistoricalData() {
+    try {
+        const response = await fetch('https://api.artutos.us.kg/api/history');
+        historicalData = await response.json();
+        updateDashboard();
+        updateLastUpdate();
+    } catch (error) {
+        console.error('Error fetching historical data:', error);
+    }
+}
+
+function updateLastUpdate() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+}
+
+function toggleAutoRefresh() {
+    const button = document.getElementById('refreshToggle');
+    isAutoRefreshEnabled = !isAutoRefreshEnabled;
     
-    new Chart(historicalCtx, {
+    if (isAutoRefreshEnabled) {
+        button.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+        refreshInterval = setInterval(fetchHistoricalData, interval);
+    } else {
+        button.innerHTML = '<i class="bi bi-play-fill"></i>';
+        clearInterval(refreshInterval);
+    }
+}
+
+function filterDataByTimeRange(range) {
+    const now = new Date();
+    const cutoff = new Date();
+    
+    switch(range) {
+        case 'hour':
+            cutoff.setHours(now.getHours() - 1);
+            break;
+        case 'day':
+            cutoff.setDate(now.getDate() - 1);
+            break;
+        case 'week':
+            cutoff.setDate(now.getDate() - 7);
+            break;
+        case 'month':
+            cutoff.setDate(now.getDate() - 30);
+            break;
+    }
+    
+    return historicalData.filter(entry => new Date(entry.timestamp) > cutoff);
+}
+
+function updateDashboard() {
+    const range = document.getElementById('timeRange').value;
+    const filteredData = filterDataByTimeRange(range);
+    
+    if (filteredData.length === 0) return;
+    
+    const latest = filteredData[filteredData.length - 1];
+    const previous = filteredData[0];
+    
+    // Update summary stats
+    document.getElementById('currentSessions').textContent = latest.active_sessions;
+    document.getElementById('totalAccounts').textContent = latest.accounts_data.length;
+    
+    // Calculate active accounts
+    const activeAccounts = latest.accounts_data.filter(acc => acc.active_sessions > 0).length;
+    document.getElementById('accountsActive').textContent = 
+        `${activeAccounts} active (${((activeAccounts/latest.accounts_data.length)*100).toFixed(1)}%)`;
+    
+    // Calculate active users
+    const activeUsers = latest.accounts_data.reduce((sum, acc) => sum + acc.unique_users, 0);
+    document.getElementById('activeUsers').textContent = activeUsers;
+    
+    // Find peak sessions
+    const peak = filteredData.reduce((max, entry) => 
+        entry.active_sessions > max.active_sessions ? entry : max, filteredData[0]);
+    document.getElementById('peakSessions').textContent = peak.active_sessions;
+    document.getElementById('peakTime').textContent = new Date(peak.timestamp).toLocaleTimeString();
+    
+    // Calculate trends
+    const sessionsTrend = ((latest.active_sessions - previous.active_sessions) / previous.active_sessions * 100).toFixed(1);
+    document.getElementById('sessionsTrend').textContent = 
+        `${sessionsTrend > 0 ? '↑' : '↓'} ${Math.abs(sessionsTrend)}% from previous`;
+    
+    // Update all visualizations
+    updateSessionsChart(filteredData);
+    updateAccountDistribution(latest);
+    updateDomainActivity(latest);
+    updateAccountPerformance(latest);
+    updateUsagePatterns(filteredData);
+    
+    // Update domain filter options
+    updateDomainFilter(latest);
+}
+
+function updateSessionsChart(data) {
+    const ctx = document.getElementById('sessionsChart').getContext('2d');
+    
+    if (sessionsChart) {
+        sessionsChart.destroy();
+    }
+    
+    const datasets = [{
+        label: 'Total Sessions',
+        data: data.map(d => d.active_sessions),
+        borderColor: '#4B91F1',
+        tension: 0.4,
+        fill: true,
+        backgroundColor: 'rgba(75, 145, 241, 0.1)'
+    }];
+    
+    if (document.querySelector('.btn-group button.active').textContent === 'By Account') {
+        // Add dataset for each account
+        const accounts = {};
+        data[0].accounts_data.forEach(acc => {
+            accounts[acc.account_id] = {
+                label: acc.name,
+                data: [],
+                borderColor: getRandomColor(),
+                tension: 0.4,
+                fill: false
+            };
+        });
+        
+        data.forEach(entry => {
+            entry.accounts_data.forEach(acc => {
+                if (accounts[acc.account_id]) {
+                    accounts[acc.account_id].data.push(acc.active_sessions);
+                }
+            });
+        });
+        
+        datasets.push(...Object.values(accounts));
+    }
+    
+    sessionsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: historicalData.map(d => new Date(d.timestamp).toLocaleDateString()),
-            datasets: [{
-                label: 'Active Sessions',
-                data: historicalData.map(d => d.active_sessions),
-                borderColor: '#4B91F1',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(75, 145, 241, 0.1)'
-            }]
+            labels: data.map(d => new Date(d.timestamp).toLocaleTimeString()),
+            datasets: datasets
         },
         options: {
             responsive: true,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    display: datasets.length > 1
                 }
             },
             scales: {
@@ -235,24 +367,112 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+}
 
-    // Account Usage Chart
-    const accountCtx = document.getElementById('accountUsageChart').getContext('2d');
-    const accountData = {
-        labels: {{ analytics.accounts|map(attribute='name')|list|tojson }},
-        datasets: [{
-            label: 'Active Sessions',
-            data: {{ analytics.accounts|map(attribute='active_sessions')|list|tojson }},
-            backgroundColor: [
-                '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
-                '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
-            ]
-        }]
-    };
+function updateAccountDistribution(latest) {
+    const ctx = document.getElementById('accountDistributionChart').getContext('2d');
+    
+    if (accountDistributionChart) {
+        accountDistributionChart.destroy();
+    }
+    
+    const accountData = latest.accounts_data.map(acc => ({
+        name: acc.name,
+        sessions: acc.active_sessions,
+        users: acc.unique_users
+    }));
+    
+    const chartType = document.querySelector('.btn-group button.active').textContent === 'Doughnut' ? 'doughnut' : 'bar';
+    
+    accountDistributionChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: accountData.map(a => a.name),
+            datasets: [{
+                label: 'Active Sessions',
+                data: accountData.map(a => a.sessions),
+                backgroundColor: [
+                    '#4B91F1', '#FF6B6B', '#4BC0C0', '#FFCD56', '#C9CBCF',
+                    '#FF9F40', '#B39DDB', '#4DB6AC', '#FFB74D', '#90A4AE'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: chartType === 'doughnut' ? 'bottom' : 'top',
+                    display: chartType === 'doughnut'
+                }
+            },
+            ...(chartType === 'bar' && {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            })
+        }
+    });
+}
 
-    new Chart(accountCtx, {
+function updateDomainFilter(latest) {
+    const select = document.getElementById('domainFilter');
+    const currentValue = select.value;
+    
+    // Clear existing options except "All Accounts"
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+    
+    // Add account options
+    latest.accounts_data.forEach(acc => {
+        const option = new Option(acc.name, acc.account_id);
+        select.add(option);
+    });
+    
+    // Restore previous selection if it exists
+    if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+        select.value = currentValue;
+    }
+}
+
+function updateDomainActivity(latest) {
+    const ctx = document.getElementById('domainActivityChart').getContext('2d');
+    const selectedAccount = document.getElementById('domainFilter').value;
+    
+    if (domainActivityChart) {
+        domainActivityChart.destroy();
+    }
+    
+    // Aggregate domains based on filter
+    const domains = {};
+    latest.accounts_data.forEach(acc => {
+        if (selectedAccount === 'all' || acc.account_id.toString() === selectedAccount) {
+            Object.entries(acc.domains).forEach(([domain, count]) => {
+                domains[domain] = (domains[domain] || 0) + count;
+            });
+        }
+    });
+    
+    // Sort domains by usage
+    const sortedDomains = Object.entries(domains)
+        .sort(([,a], [,b]) => b - a)
+        .reduce((r, [k, v]) => ({ ...r, [k]: v }), {});
+    
+    domainActivityChart = new Chart(ctx, {
         type: 'bar',
-        data: accountData,
+        data: {
+            labels: Object.keys(sortedDomains),
+            datasets: [{
+                label: 'Active Sessions',
+                data: Object.values(sortedDomains),
+                backgroundColor: '#4B91F1'
+            }]
+        },
         options: {
             responsive: true,
             plugins: {
@@ -270,21 +490,192 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-});
+    
+    // Update domain stats
+    const totalSessions = Object.values(domains).reduce((a, b) => a + b, 0);
+    const uniqueDomains = Object.keys(domains).length;
+    document.getElementById('domainStats').textContent = 
+        `${uniqueDomains} unique domains with ${totalSessions} total sessions`;
+}
 
-function filterActivity(type) {
-    const rows = document.querySelectorAll('.activity-row');
-    rows.forEach(row => {
-        if (type === 'all' || row.dataset.type === type) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+function updateAccountPerformance(latest) {
+    const tbody = document.querySelector('#accountPerformanceTable tbody');
+    tbody.innerHTML = '';
+    
+    const accounts = latest.accounts_data.map(acc => {
+        const usagePercentage = (acc.active_sessions / acc.total_sessions * 100) || 0;
+        return {
+            ...acc,
+            usagePercentage
+        };
     });
+    
+    // Sort based on active button
+    const sortBy = document.querySelector('#accountPerformanceTable + .btn-group .active').textContent;
+    accounts.sort((a, b) => {
+        if (sortBy === 'By Usage') {
+            return b.usagePercentage - a.usagePercentage;
+        }
+        return b.unique_users - a.unique_users;
+    });
+    
+    accounts.forEach(acc => {
+        const row = document.createElement('tr');
+        
+        const status = acc.usagePercentage >= 90 ? 'danger' :
+                      acc.usagePercentage >= 70 ? 'warning' : 'success';
+        
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <span class="me-2">${acc.name}</span>
+                    ${acc.active_sessions > 0 ? '<span class="badge bg-success">Active</span>' : ''}
+                </div>
+            </td>
+            <td>${acc.active_sessions}/${acc.total_sessions}</td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-fill me-1"></i>
+                    ${acc.unique_users}
+                </div>
+            </td>
+            <td style="width: 30%;">
+                <div class="progress">
+                    <div class="progress-bar bg-${status}" 
+                         role="progressbar" 
+                         style="width: ${acc.usagePercentage}%">
+                        ${acc.usagePercentage.toFixed(1)}%
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="badge bg-${status}">
+                    ${status.charAt(0).toUpperCase() + status.slice(1)}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 
-    const buttons = document.querySelectorAll('.btn-group .btn');
+function updateUsagePatterns(data) {
+    // Calculate peak hours
+    const hourlyUsage = Array(24).fill(0);
+    data.forEach(entry => {
+        const hour = new Date(entry.timestamp).getHours();
+        hourlyUsage[hour] += entry.active_sessions;
+    });
+    
+    const peakHour = hourlyUsage.indexOf(Math.max(...hourlyUsage));
+    const peakHoursHtml = `
+        <div class="d-flex align-items-center">
+            <div class="display-6 me-3">${peakHour}:00</div>
+            <div>
+                <div class="text-muted">Peak hour with</div>
+                <div class="fs-5">${Math.max(...hourlyUsage)} sessions</div>
+            </div>
+        </div>
+    `;
+    document.getElementById('peakHours').innerHTML = peakHoursHtml;
+    
+    // Calculate top domains
+    const domains = {};
+    const latest = data[data.length - 1];
+    latest.accounts_data.forEach(acc => {
+        Object.entries(acc.domains).forEach(([domain, count]) => {
+            domains[domain] = (domains[domain] || 0) + count;
+        });
+    });
+    
+    const topDomainsHtml = Object.entries(domains)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3)
+        .map(([domain, count], index) => `
+            <div class="mb-2">
+                <div class="d-flex justify-content-between">
+                    <span>${index + 1}. ${domain}</span>
+                    <span class="badge bg-primary">${count}</span>
+                </div>
+            </div>
+        `).join('');
+    document.getElementById('topDomains').innerHTML = topDomainsHtml;
+    
+    // Calculate account health
+    const accounts = latest.accounts_data;
+    const healthy = accounts.filter(acc => (acc.active_sessions / acc.total_sessions * 100) < 70).length;
+    const warning = accounts.filter(acc => {
+        const usage = (acc.active_sessions / acc.total_sessions * 100);
+        return usage >= 70 && usage < 90;
+    }).length;
+    const critical = accounts.filter(acc => (acc.active_sessions / acc.total_sessions * 100) >= 90).length;
+    
+    const healthHtml = `
+        <div class="row text-center">
+            <div class="col">
+                <div class="fs-4 text-success">${healthy}</div>
+                <div class="small text-muted">Healthy</div>
+            </div>
+            <div class="col">
+                <div class="fs-4 text-warning">${warning}</div>
+                <div class="small text-muted">Warning</div>
+            </div>
+            <div class="col">
+                <div class="fs-4 text-danger">${critical}</div>
+                <div class="small text-muted">Critical</div>
+            </div>
+        </div>
+    `;
+    document.getElementById('accountHealth').innerHTML = healthHtml;
+}
+
+function toggleSessionsView(view) {
+    const buttons = document.querySelectorAll('#sessionsChart + .btn-group button');
     buttons.forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
+    updateSessionsChart(filterDataByTimeRange(document.getElementById('timeRange').value));
+}
+
+function toggleDistributionChart(type) {
+    const buttons = document.querySelectorAll('#accountDistributionChart + .btn-group button');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    updateAccountDistribution(historicalData[historicalData.length - 1]);
+}
+
+function sortAccountTable(criteria) {
+    const buttons = document.querySelectorAll('#accountPerformanceTable + .btn-group button');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    updateAccountPerformance(historicalData[historicalData.length - 1]);
+}
+
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+    fetchHistoricalData();
+    // Start auto-refresh
+    const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+    refreshInterval = setInterval(fetchHistoricalData, interval);
+    
+    // Update refresh interval when changed
+    document.getElementById('refreshInterval').addEventListener('change', function() {
+        if (isAutoRefreshEnabled) {
+            clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchHistoricalData, this.value * 1000);
+        }
+    });
+});
+
+function updateCharts() {
+    updateDashboard();
 }
 </script>
 {% endblock %}
