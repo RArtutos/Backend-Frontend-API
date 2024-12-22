@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from ...core.auth import get_current_admin_user
 from ...db.database import Database
-from ...schemas.user import UserCreate, UserResponse
+from ...schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter()
 db = Database()
@@ -17,6 +17,25 @@ async def create_user(user: UserCreate, current_user: dict = Depends(get_current
     if db.get_user_by_email(user.email):
         raise HTTPException(status_code=400, detail="Email already registered")
     return db.create_user(user.dict())
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    user: UserUpdate,
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """Update user details"""
+    existing_user = db.get_user_by_email(user_id)
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if existing_user.get("is_admin") and not user.is_admin:
+        raise HTTPException(status_code=400, detail="Cannot remove admin status")
+    
+    updated_user = db.update_user(user_id, user.dict(exclude_unset=True))
+    if not updated_user:
+        raise HTTPException(status_code=400, detail="Failed to update user")
+    return updated_user
 
 @router.delete("/{user_id}")
 async def delete_user(user_id: str, current_user: dict = Depends(get_current_admin_user)):
@@ -38,41 +57,3 @@ async def get_user_accounts(user_id: str, current_user: dict = Depends(get_curre
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return db.get_accounts(user_id)
-
-@router.post("/{user_id}/accounts/{account_id}")
-async def assign_account(
-    user_id: str, 
-    account_id: int, 
-    current_user: dict = Depends(get_current_admin_user)
-):
-    """Assign account to user"""
-    user = db.get_user_by_email(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    account = db.get_account(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-        
-    if db.assign_account_to_user(user_id, account_id):
-        return {"success": True, "message": "Account assigned successfully"}
-    raise HTTPException(status_code=400, detail="Failed to assign account")
-
-@router.delete("/{user_id}/accounts/{account_id}")
-async def remove_account(
-    user_id: str, 
-    account_id: int, 
-    current_user: dict = Depends(get_current_admin_user)
-):
-    """Remove account from user"""
-    user = db.get_user_by_email(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    account = db.get_account(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-        
-    if db.remove_account_from_user(user_id, account_id):
-        return {"success": True, "message": "Account removed successfully"}
-    raise HTTPException(status_code=400, detail="Failed to remove account")
