@@ -84,9 +84,9 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Sessions Over Time</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary active" onclick="toggleSessionsView('total')">Total</button>
-                        <button class="btn btn-outline-secondary" onclick="toggleSessionsView('byAccount')">By Account</button>
+                    <div class="btn-group btn-group-sm" id="sessionsViewButtons">
+                        <button class="btn btn-outline-secondary active" data-view="total">Total</button>
+                        <button class="btn btn-outline-secondary" data-view="byAccount">By Account</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -100,9 +100,9 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Account Usage</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary active" onclick="toggleDistributionChart('doughnut')">Doughnut</button>
-                        <button class="btn btn-outline-secondary" onclick="toggleDistributionChart('bar')">Bar</button>
+                    <div class="btn-group btn-group-sm" id="distributionViewButtons">
+                        <button class="btn btn-outline-secondary active" data-type="doughnut">Doughnut</button>
+                        <button class="btn btn-outline-secondary" data-type="bar">Bar</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -136,9 +136,9 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Account Performance</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary active" onclick="sortAccountTable('usage')">By Usage</button>
-                        <button class="btn btn-outline-secondary" onclick="sortAccountTable('users')">By Users</button>
+                    <div class="btn-group btn-group-sm" id="performanceViewButtons">
+                        <button class="btn btn-outline-secondary active" data-sort="usage">By Usage</button>
+                        <button class="btn btn-outline-secondary" data-sort="users">By Users</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -205,6 +205,51 @@ let sessionsChart, accountDistributionChart, domainActivityChart;
 let historicalData = [];
 let refreshInterval;
 let isAutoRefreshEnabled = true;
+
+// Initialize button event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Sessions view buttons
+    document.getElementById('sessionsViewButtons').addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') {
+            this.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            updateSessionsChart(filterDataByTimeRange(document.getElementById('timeRange').value));
+        }
+    });
+
+    // Distribution view buttons
+    document.getElementById('distributionViewButtons').addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') {
+            this.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            updateAccountDistribution(historicalData[historicalData.length - 1]);
+        }
+    });
+
+    // Performance view buttons
+    document.getElementById('performanceViewButtons').addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') {
+            this.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            updateAccountPerformance(historicalData[historicalData.length - 1]);
+        }
+    });
+
+    // Start initial data fetch
+    fetchHistoricalData();
+    
+    // Start auto-refresh
+    const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+    refreshInterval = setInterval(fetchHistoricalData, interval);
+    
+    // Update refresh interval when changed
+    document.getElementById('refreshInterval').addEventListener('change', function() {
+        if (isAutoRefreshEnabled) {
+            clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchHistoricalData, this.value * 1000);
+        }
+    });
+});
 
 // Fetch historical data
 async function fetchHistoricalData() {
@@ -305,6 +350,7 @@ function updateDashboard() {
 
 function updateSessionsChart(data) {
     const ctx = document.getElementById('sessionsChart').getContext('2d');
+    const viewType = document.querySelector('#sessionsViewButtons button.active').dataset.view;
     
     if (sessionsChart) {
         sessionsChart.destroy();
@@ -319,7 +365,7 @@ function updateSessionsChart(data) {
         backgroundColor: 'rgba(75, 145, 241, 0.1)'
     }];
     
-    if (document.querySelector('.btn-group button.active').textContent === 'By Account') {
+    if (viewType === 'byAccount') {
         // Add dataset for each account
         const accounts = {};
         data[0].accounts_data.forEach(acc => {
@@ -371,6 +417,7 @@ function updateSessionsChart(data) {
 
 function updateAccountDistribution(latest) {
     const ctx = document.getElementById('accountDistributionChart').getContext('2d');
+    const chartType = document.querySelector('#distributionViewButtons button.active').dataset.type;
     
     if (accountDistributionChart) {
         accountDistributionChart.destroy();
@@ -381,8 +428,6 @@ function updateAccountDistribution(latest) {
         sessions: acc.active_sessions,
         users: acc.unique_users
     }));
-    
-    const chartType = document.querySelector('.btn-group button.active').textContent === 'Doughnut' ? 'doughnut' : 'bar';
     
     accountDistributionChart = new Chart(ctx, {
         type: chartType,
@@ -500,6 +545,7 @@ function updateDomainActivity(latest) {
 
 function updateAccountPerformance(latest) {
     const tbody = document.querySelector('#accountPerformanceTable tbody');
+    const sortBy = document.querySelector('#performanceViewButtons button.active').dataset.sort;
     tbody.innerHTML = '';
     
     const accounts = latest.accounts_data.map(acc => {
@@ -511,9 +557,8 @@ function updateAccountPerformance(latest) {
     });
     
     // Sort based on active button
-    const sortBy = document.querySelector('#accountPerformanceTable + .btn-group .active').textContent;
     accounts.sort((a, b) => {
-        if (sortBy === 'By Usage') {
+        if (sortBy === 'usage') {
             return b.usagePercentage - a.usagePercentage;
         }
         return b.unique_users - a.unique_users;
@@ -628,27 +673,6 @@ function updateUsagePatterns(data) {
     document.getElementById('accountHealth').innerHTML = healthHtml;
 }
 
-function toggleSessionsView(view) {
-    const buttons = document.querySelectorAll('#sessionsChart + .btn-group button');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    updateSessionsChart(filterDataByTimeRange(document.getElementById('timeRange').value));
-}
-
-function toggleDistributionChart(type) {
-    const buttons = document.querySelectorAll('#accountDistributionChart + .btn-group button');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    updateAccountDistribution(historicalData[historicalData.length - 1]);
-}
-
-function sortAccountTable(criteria) {
-    const buttons = document.querySelectorAll('#accountPerformanceTable + .btn-group button');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    updateAccountPerformance(historicalData[historicalData.length - 1]);
-}
-
 function getRandomColor() {
     const letters = '0123456789ABCDEF';
     let color = '#';
@@ -657,22 +681,6 @@ function getRandomColor() {
     }
     return color;
 }
-
-// Initial load
-document.addEventListener('DOMContentLoaded', () => {
-    fetchHistoricalData();
-    // Start auto-refresh
-    const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
-    refreshInterval = setInterval(fetchHistoricalData, interval);
-    
-    // Update refresh interval when changed
-    document.getElementById('refreshInterval').addEventListener('change', function() {
-        if (isAutoRefreshEnabled) {
-            clearInterval(refreshInterval);
-            refreshInterval = setInterval(fetchHistoricalData, this.value * 1000);
-        }
-    });
-});
 
 function updateCharts() {
     updateDashboard();
