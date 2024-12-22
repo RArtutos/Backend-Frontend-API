@@ -22,7 +22,9 @@ class AnalyticsViews:
     def account_analytics(self, account_id):
         """Get analytics for a specific account"""
         analytics_data = admin_service.get_account_analytics(account_id)
+        account = admin_service.get_account(account_id)
         return render_template('analytics/account_dashboard.html', 
-                             analytics=analytics_data)
+                             analytics=analytics_data,
+                             account=account)
 
 analytics_views = AnalyticsViews()
