@@ -1,0 +1,29 @@
+{% macro render_field(field, label_class="form-label", input_class="form-control") %}
+    <div class="mb-3">
+        {{ field.label(class=label_class) }}
+        {{ field(class=input_class)|safe }}
+        {% if field.errors %}
+            <div class="text-danger">
+                {% for error in field.errors %}
+                    <small>{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if field.description %}
+            <small class="text-muted">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_submit(text="Submit", cancel_url=None) %}
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> {{ text }}
+        </button>
+        {% if cancel_url %}
+        <a href="{{ cancel_url }}" class="btn btn-secondary">
+            <i class="bi bi-x-circle"></i> Cancel
+        </a>
+        {% endif %}
+    </div>
+{% endmacro %}
